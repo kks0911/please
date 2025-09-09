@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>랜덤 뽑기 룰렛</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    .container {
+      display: flex;
+      gap: 30px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 250px;
+    }
+    .inputs textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      font-size: 14px;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    canvas {
+      border: 5px solid #333;
+      border-radius: 50%;
+      background: white;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎡 랜덤 뽑기 룰렛</h2>
+  <p>항목을 입력하고 룰렛을 돌려보세요!</p>
+
+  <div class="container">
+    <div class="inputs">
+      <label>항목 (줄바꿈으로 구분):</label>
+      <textarea id="items">치킨
+피자
+햄버거
+떡볶이
+초밥</textarea>
+      <button onclick="spin()">룰렛 돌리기</button>
+    </div>
+    <canvas id="wheel" width="300" height="300"></canvas>
+  </div>
+
+  <div class="result" id="result">결과: -</div>
+
+  <script>
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    let items = [];
+    let angle = 0;
+
+    function drawWheel(list) {
+      const num = list.length;
+      const arc = (2 * Math.PI) / num;
+      for (let i = 0; i < num; i++) {
+        ctx.beginPath();
+        ctx.fillStyle = i % 2 === 0 ? "#3498db" : "#f1c40f";
+        ctx.moveTo(150, 150);
+        ctx.arc(150, 150, 150, i * arc, (i + 1) * arc);
+        ctx.lineTo(150, 150);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(150, 150);
+        ctx.rotate(i * arc + arc / 2);
+        ctx.fillStyle = "#333";
+        ctx.font = "14px Arial";
+        ctx.fillText(list[i], 60, 5);
+        ctx.restore();
+      }
+    }
+
+    function spin() {
+      items = document.getElementById("items").value.split("\n").filter(v => v.trim() !== "");
+      if (items.length < 2) {
+        alert("최소 2개 이상 입력하세요!");
+        return;
+      }
+      let spinAngle = Math.random() * 360 + 720; // 최소 2바퀴 이상
+      let spinTime = 0;
+      let spinTimeTotal = 3000;
+
+      function rotate() {
+        spinTime += 30;
+        if (spinTime >= spinTimeTotal) {
+          stopRotate(spinAngle);
+          return;
+        }
+        let easeOut = spinAngle * (1 - Math.pow((spinTimeTotal - spinTime) / spinTimeTotal, 3));
+        angle = easeOut * Math.PI / 180;
+        draw();
+        requestAnimationFrame(rotate);
+      }
+      rotate();
+    }
+
+    function stopRotate(spinAngle) {
+      const degrees = angle * 180 / Math.PI;
+      const arc = 360 / items.length;
+      const index = Math.floor((360 - (degrees % 360)) / arc) % items.length;
+      document.getElementById("result").innerText = "결과: " + items[index];
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const num = items.length;
+      const arc = (2 * Math.PI) / num;
+      for (let i = 0; i < num; i++) {
+        ctx.beginPath();
+        ctx.fillStyle = i % 2 === 0 ? "#3498db" : "#f1c40f";
+        ctx.moveTo(150, 150);
+        ctx.arc(150, 150, 150, angle + i * arc, angle + (i + 1) * arc);
+        ctx.lineTo(150, 150);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(150, 150);
+        ctx.rotate(angle + i * arc + arc / 2);
+        ctx.fillStyle = "#333";
+        ctx.font = "14px Arial";
+        ctx.fillText(items[i], 60, 5);
+        ctx.restore();
+      }
+    }
+
+    // 초기 기본 룰렛 그리기
+    items = document.getElementById("items").value.split("\n");
+    drawWheel(items);
+  </script>
+</body>
+</html>
