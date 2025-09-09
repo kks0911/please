@@ -1,159 +1,227 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>랜덤 뽑기 룰렛</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>룰렛(원판)돌리기 - 내가 만든 네이버 돌림판</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 20px;
+    :root{
+      --bg:#2e2e2e; --fg:#e9edf1; --muted:#bfc6cf;
+      --primary:#2d8cff; --primary-d:#1f6ad1; --card:#3a3a3a;
     }
-    h2 {
-      margin-bottom: 10px;
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", Helvetica, Arial;
     }
-    .container {
-      display: flex;
-      gap: 30px;
-      margin-top: 20px;
-      flex-wrap: wrap;
-      justify-content: center;
+    .wrap{
+      max-width:880px; margin:0 auto; padding:32px 20px 80px;
+      text-align:center;
     }
-    .inputs {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 250px;
+    h1{font-size:42px; margin:16px 0 8px; font-weight:800}
+    .sub{color:var(--muted); margin-bottom:28px}
+    .card{
+      background:var(--card); border-radius:16px; padding:20px;
+      display:flex; flex-direction:column; align-items:center; gap:18px;
     }
-    .inputs textarea {
-      width: 100%;
-      height: 150px;
-      padding: 10px;
-      font-size: 14px;
+    .step-title{font-size:18px; color:#dfe6ee}
+    .counter{display:flex; align-items:center; gap:10px}
+    .btn{
+      border:none; cursor:pointer; font-weight:700;
+      border-radius:10px; padding:10px 14px; font-size:18px;
+      background:var(--primary); color:#fff; transition:.15s;
     }
-    button {
-      padding: 10px;
-      font-size: 16px;
-      cursor: pointer;
+    .btn:hover{background:var(--primary-d)}
+    .btn-ghost{
+      background:#445; color:#fff; border:1px solid #556;
     }
-    canvas {
-      border: 5px solid #333;
-      border-radius: 50%;
-      background: white;
+    .badge{color:var(--muted); font-size:13px}
+    .grid{
+      display:grid; grid-template-columns: 1fr; gap:20px; width:100%;
+      place-items:center;
     }
-    .result {
-      margin-top: 20px;
-      font-size: 20px;
-      font-weight: bold;
-      color: #e74c3c;
+    canvas{background:#fff; border-radius:50%; box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .cta{margin-top:16px}
+    /* 2단계(항목 입력) */
+    .inputs{display:none; gap:12px; margin-top:24px; width:100%}
+    .inputs.active{display:grid}
+    .inputs{grid-template-columns: repeat(auto-fit, minmax(180px,1fr))}
+    .text{
+      width:100%; padding:12px 14px; border-radius:10px; border:1px solid #556;
+      background:#2f3340; color:#e9edf1; outline:none; font-size:15px;
     }
+    .indicator{
+      width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;
+      border-bottom:16px solid #ff4757; margin:10px auto 0;
+      filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))
+    }
+    .result{margin-top:16px;font-size:20px;font-weight:800;color:#ffd166;min-height:28px}
   </style>
 </head>
 <body>
-  <h2>🎡 랜덤 뽑기 룰렛</h2>
-  <p>항목을 입력하고 룰렛을 돌려보세요!</p>
+  <div class="wrap">
+    <h1>룰렛(원판)돌리기 - 내가 만든 네이버 돌림판</h1>
+    <div class="sub">룰렛을 돌려 결정해보세요!</div>
 
-  <div class="container">
-    <div class="inputs">
-      <label>항목 (줄바꿈으로 구분):</label>
-      <textarea id="items">치킨
-피자
-햄버거
-떡볶이
-초밥</textarea>
-      <button onclick="spin()">룰렛 돌리기</button>
+    <div class="card">
+      <div class="step-title">1. 룰렛(원판) 선택지 개수를 정해주세요.</div>
+
+      <div class="counter">
+        <button class="btn btn-ghost" id="plus">＋</button>
+        <div id="count" style="min-width:48px; font-size:22px; font-weight:800;">3</div>
+        <button class="btn btn-ghost" id="minus">－</button>
+      </div>
+      <div class="badge">(2개~12개 설정가능)</div>
+
+      <div class="grid">
+        <div class="indicator"></div>
+        <canvas id="wheel" width="360" height="360"></canvas>
+      </div>
+
+      <div class="cta">
+        <button class="btn" id="lockCount">개수 설정 완료</button>
+      </div>
+
+      <!-- 2단계: 항목 입력 + 돌리기 -->
+      <div id="inputs" class="inputs"></div>
+      <div id="actions" style="display:none; gap:10px; margin-top:8px;">
+        <button class="btn" id="spinBtn">룰렛 돌리기</button>
+        <button class="btn btn-ghost" id="resetBtn">초기화</button>
+      </div>
+      <div class="result" id="result"></div>
     </div>
-    <canvas id="wheel" width="300" height="300"></canvas>
   </div>
 
-  <div class="result" id="result">결과: -</div>
-
   <script>
-    const canvas = document.getElementById("wheel");
-    const ctx = canvas.getContext("2d");
-    let items = [];
-    let angle = 0;
+    // 색상 팔레트 (12색 파스텔)
+    const COLORS = ["#ffd166","#a8dadc","#95d5b2","#f4a261","#74c0fc","#e9c46a",
+                    "#bde0fe","#caffbf","#ffddc1","#c9f0ff","#d0bdf4","#ffc8dd"];
 
-    function drawWheel(list) {
-      const num = list.length;
-      const arc = (2 * Math.PI) / num;
-      for (let i = 0; i < num; i++) {
+    const wheel = document.getElementById('wheel');
+    const ctx   = wheel.getContext('2d');
+    const countEl = document.getElementById('count');
+    const resEl   = document.getElementById('result');
+    const inputsBox = document.getElementById('inputs');
+    const actions  = document.getElementById('actions');
+
+    let count = 3;               // 초기 조각 수
+    let labels = [];             // 라벨
+    let angleOffset = 0;         // 회전 각도
+    let spinning = false;
+
+    // 기본 라벨 채우기
+    function defaultLabels(n){
+      const base = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+      return base.slice(0,n);
+    }
+
+    function drawWheel(n, names){
+      const cx = wheel.width/2, cy = wheel.height/2, r = wheel.width/2;
+      ctx.clearRect(0,0,wheel.width,wheel.height);
+
+      const arc = (2*Math.PI)/n;
+      for(let i=0;i<n;i++){
+        // slice
         ctx.beginPath();
-        ctx.fillStyle = i % 2 === 0 ? "#3498db" : "#f1c40f";
-        ctx.moveTo(150, 150);
-        ctx.arc(150, 150, 150, i * arc, (i + 1) * arc);
-        ctx.lineTo(150, 150);
-        ctx.fill();
+        ctx.moveTo(cx,cy);
+        ctx.fillStyle = COLORS[i%COLORS.length];
+        ctx.arc(cx,cy,r, angleOffset + i*arc, angleOffset + (i+1)*arc);
+        ctx.closePath(); ctx.fill();
+
+        // text
+        const mid = angleOffset + i*arc + arc/2;
         ctx.save();
-        ctx.translate(150, 150);
-        ctx.rotate(i * arc + arc / 2);
-        ctx.fillStyle = "#333";
-        ctx.font = "14px Arial";
-        ctx.fillText(list[i], 60, 5);
+        ctx.translate(cx,cy);
+        ctx.rotate(mid);
+        ctx.fillStyle = "#243447";
+        ctx.font = "bold 16px ui-sans-serif, system-ui";
+        const text = names?.[i] ?? (`옵션 ${i+1}`);
+        // 가운데에서 바깥쪽으로
+        ctx.textAlign="center";
+        ctx.fillText(text, r*0.58, 6); // 적당히 바깥쪽
         ctx.restore();
       }
     }
 
-    function spin() {
-      items = document.getElementById("items").value.split("\n").filter(v => v.trim() !== "");
-      if (items.length < 2) {
-        alert("최소 2개 이상 입력하세요!");
-        return;
-      }
-      let spinAngle = Math.random() * 360 + 720; // 최소 2바퀴 이상
-      let spinTime = 0;
-      let spinTimeTotal = 3000;
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
-      function rotate() {
-        spinTime += 30;
-        if (spinTime >= spinTimeTotal) {
-          stopRotate(spinAngle);
-          return;
+    // 개수 +/-
+    document.getElementById('plus').onclick = () => {
+      count = clamp(count+1, 2, 12);
+      countEl.textContent = count;
+      drawWheel(count, defaultLabels(count));
+    };
+    document.getElementById('minus').onclick = () => {
+      count = clamp(count-1, 2, 12);
+      countEl.textContent = count;
+      drawWheel(count, defaultLabels(count));
+    };
+
+    // 개수 확정 → 입력칸 생성
+    document.getElementById('lockCount').onclick = () => {
+      inputsBox.classList.add('active');
+      inputsBox.innerHTML = "";
+      labels = defaultLabels(count);
+      for(let i=0;i<count;i++){
+        const inp = document.createElement('input');
+        inp.className = "text";
+        inp.placeholder = `항목 ${i+1}`;
+        inp.value = labels[i];
+        inp.oninput = () => { labels[i] = inp.value.trim() || `항목 ${i+1}`; drawWheel(count, labels); };
+        inputsBox.appendChild(inp);
+      }
+      actions.style.display = "flex";
+      resEl.textContent = "";
+      drawWheel(count, labels);
+      window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+    };
+
+    // easing
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+    // 룰렛 돌리기
+    document.getElementById('spinBtn').onclick = () => {
+      if(spinning) return;
+      if(!labels.length) labels = defaultLabels(count);
+
+      spinning = true; resEl.textContent = "";
+      const duration = 3000; // ms
+      const start = performance.now();
+      const startAngle = angleOffset;
+      const extra = (Math.random()*360 + 720) * Math.PI/180; // 최소 2바퀴
+      const endAngle = startAngle + extra;
+
+      const tick = (now) => {
+        const t = clamp((now - start)/duration, 0, 1);
+        const eased = easeOutCubic(t);
+        angleOffset = startAngle + (endAngle - startAngle)*eased;
+        drawWheel(count, labels);
+        if(t < 1) requestAnimationFrame(tick);
+        else {
+          spinning = false;
+          // 결과 계산(상단 인디케이터 기준)
+          const deg = (angleOffset * 180/Math.PI) % 360;
+          const arc = 360 / count;
+          const index = Math.floor((360 - (deg % 360)) / arc) % count;
+          resEl.textContent = `결과: ${labels[index]}`;
         }
-        let easeOut = spinAngle * (1 - Math.pow((spinTimeTotal - spinTime) / spinTimeTotal, 3));
-        angle = easeOut * Math.PI / 180;
-        draw();
-        requestAnimationFrame(rotate);
-      }
-      rotate();
-    }
+      };
+      requestAnimationFrame(tick);
+    };
 
-    function stopRotate(spinAngle) {
-      const degrees = angle * 180 / Math.PI;
-      const arc = 360 / items.length;
-      const index = Math.floor((360 - (degrees % 360)) / arc) % items.length;
-      document.getElementById("result").innerText = "결과: " + items[index];
-    }
+    // 초기화
+    document.getElementById('resetBtn').onclick = () => {
+      labels = [];
+      inputsBox.classList.remove('active');
+      inputsBox.innerHTML = "";
+      actions.style.display = "none";
+      resEl.textContent = "";
+      angleOffset = 0;
+      drawWheel(count, defaultLabels(count));
+    };
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const num = items.length;
-      const arc = (2 * Math.PI) / num;
-      for (let i = 0; i < num; i++) {
-        ctx.beginPath();
-        ctx.fillStyle = i % 2 === 0 ? "#3498db" : "#f1c40f";
-        ctx.moveTo(150, 150);
-        ctx.arc(150, 150, 150, angle + i * arc, angle + (i + 1) * arc);
-        ctx.lineTo(150, 150);
-        ctx.fill();
-        ctx.save();
-        ctx.translate(150, 150);
-        ctx.rotate(angle + i * arc + arc / 2);
-        ctx.fillStyle = "#333";
-        ctx.font = "14px Arial";
-        ctx.fillText(items[i], 60, 5);
-        ctx.restore();
-      }
-    }
-
-    // 초기 기본 룰렛 그리기
-    items = document.getElementById("items").value.split("\n");
-    drawWheel(items);
+    // 첫 렌더
+    drawWheel(count, defaultLabels(count));
   </script>
 </body>
 </html>
