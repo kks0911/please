@@ -16,7 +16,8 @@
     .btn-ghost{background:#eee;color:#333;border:1px solid #d0d0d0}
     .hint{font-size:13px;color:#8a8a8a;margin-bottom:12px}
     .indicator{width:0;height:0;margin:10px auto 0;border-left:14px solid transparent;border-right:14px solid transparent;border-bottom:20px solid #e74c3c}
-    canvas{display:block;margin:10px auto 0;background:#fff;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+    /* 캔버스 크기를 고정하면 브라우저별 좌표 오차가 사라짐 */
+    canvas{display:block;margin:10px auto 0;background:#fff;border-radius:50%;box-shadow:0 4px 12px rgba(0,0,0,.15); width:360px; height:360px;}
     .inputs{display:none;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center}
     .inputs.active{display:flex}
     .text{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:15px;width:160px}
@@ -32,7 +33,7 @@
     <div class="step">1. 룰렛 선택지 개수를 정해주세요.</div>
     <div class="counter">
       <button class="btn btn-ghost" id="plus">＋</button>
-      <div id="count" style="min-width:48px;font-size:22px;font-weight:800">3</div>
+      <div id="count" style="min-width:48px;font-size:22px;font-weight:800">5</div>
       <button class="btn btn-ghost" id="minus">－</button>
     </div>
     <div class="hint">(2개 ~ 15개 설정 가능)</div>
@@ -53,43 +54,31 @@
   </div>
 
   <script>
-    // 고해상도 캔버스 (레티나 대비)
-    function fixDPR(canvas){
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width  = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      const ctx = canvas.getContext('2d');
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-      return ctx;
-    }
-
     const COLORS = ["#ffb3ba","#ffdfba","#ffffba","#baffc9","#bae1ff",
                     "#f4b6c2","#f7d9aa","#c2f0c2","#b5ead7","#c7ceea",
                     "#ffdac1","#e2f0cb","#ffb347","#a0e7e5","#c9f9ff"];
 
     const wheel = document.getElementById('wheel');
-    const ctx   = fixDPR(wheel);
+    const ctx   = wheel.getContext('2d');
     const countEl = document.getElementById('count');
     const resEl   = document.getElementById('result');
     const inputs  = document.getElementById('inputs');
     const actions = document.getElementById('actions');
 
-    let count = 3;
+    let count = 5;
     let labels = [];
-    let angleOffset = 0;   // 회전량
+    let angleOffset = 0;
     let spinning = false;
 
     function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
-    function defaults(n){ return Array.from({length:n}, (_,i)=>String.fromCharCode(65+i)); }
+    function defaults(n){ return Array.from({length:n},(_,i)=>String.fromCharCode(65+i)); }
 
-    // 텍스트를 회전하지 않고 "좌표 계산"으로 평행 배치
+    // 텍스트를 "절대 좌표"로 배치 (항상 평행, 중앙)
     function drawWheel(n, names){
-      const W = wheel.clientWidth, H = wheel.clientHeight;
-      const cx = W/2, cy = H/2, r = Math.min(W,H)/2;
-      ctx.clearRect(0,0,W,H);
-
+      const cx = wheel.width/2, cy = wheel.height/2, r = wheel.width/2;
+      ctx.clearRect(0,0,wheel.width,wheel.height);
       const arc = (2*Math.PI)/n;
+
       for(let i=0;i<n;i++){
         // 조각
         ctx.beginPath();
@@ -99,20 +88,19 @@
         ctx.closePath();
         ctx.fill();
 
-        // 텍스트(평행)
+        // 텍스트 (각 조각 중앙, 수평)
         const mid = angleOffset + i*arc + arc/2;
         const tx = cx + Math.cos(mid) * (r*0.62);
         const ty = cy + Math.sin(mid) * (r*0.62);
         ctx.fillStyle = "#1f2d3d";
-        ctx.font = "bold 18px 'Segoe UI', 'Noto Sans KR', sans-serif";
+        ctx.font = "bold 18px 'Segoe UI','Noto Sans KR',sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const label = (names?.[i] ?? `항목${i+1}`) + "";
+        const label = (names && Array.isArray(names) && names[i] !== undefined) ? (names[i]||`항목${i+1}`) : `항목${i+1}`;
         ctx.fillText(label, tx, ty);
       }
     }
 
-    // 개수 조절
     document.getElementById('plus').onclick = ()=>{
       count = clamp(count+1, 2, 15);
       countEl.textContent = count;
@@ -124,7 +112,6 @@
       drawWheel(count, defaults(count));
     };
 
-    // 개수 확정 → 입력칸 생성
     document.getElementById('lockCount').onclick = ()=>{
       inputs.classList.add('active');
       inputs.innerHTML = "";
@@ -134,7 +121,7 @@
         inp.className = "text";
         inp.placeholder = `항목 ${i+1}`;
         inp.value = labels[i];
-        inp.oninput = () => { labels[i] = inp.value.trim() || `항목${i+1}`; drawWheel(count, labels); };
+        inp.oninput = ()=>{ labels[i] = inp.value.trim() || `항목${i+1}`; drawWheel(count, labels); };
         inputs.appendChild(inp);
       }
       actions.style.display = "flex";
@@ -142,8 +129,7 @@
       drawWheel(count, labels);
     };
 
-    // 회전 애니메이션
-    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+    const easeOutCubic=t=>1-Math.pow(1-t,3);
     document.getElementById('spinBtn').onclick = ()=>{
       if(spinning) return;
       if(!labels.length) labels = defaults(count);
@@ -151,17 +137,17 @@
       spinning = true; resEl.textContent = "";
       const duration = 3000, start = performance.now();
       const startAngle = angleOffset;
-      const extra = (Math.random()*360 + 720) * Math.PI/180; // 2바퀴+
+      const extra = (Math.random()*360 + 720) * Math.PI/180;
       const endAngle = startAngle + extra;
 
       const tick = (now)=>{
-        const t = Math.min((now - start)/duration, 1);
-        angleOffset = startAngle + (endAngle - startAngle)*easeOutCubic(t);
+        const t = Math.min((now-start)/duration,1);
+        angleOffset = startAngle + (endAngle-startAngle)*easeOutCubic(t);
         drawWheel(count, labels);
-        if(t < 1){ requestAnimationFrame(tick); }
+        if(t<1){ requestAnimationFrame(tick); }
         else{
           spinning = false;
-          const deg = (angleOffset*180/Math.PI) % 360;
+          const deg = (angleOffset*180/Math.PI)%360;
           const arc = 360 / count;
           const index = Math.floor((360 - (deg % 360)) / arc) % count;
           resEl.textContent = `결과: ${labels[index]}`;
@@ -180,10 +166,8 @@
       drawWheel(count, defaults(count));
     };
 
-    // 최초 렌더(현재 크기에 맞춰 DPR 세팅됨)
+    // 최초 렌더
     drawWheel(count, defaults(count));
-    // 창 크기 바뀌면 다시 DPR/렌더
-    window.addEventListener('resize', ()=>{ fixDPR(wheel); drawWheel(count, labels.length?labels:defaults(count)); });
   </script>
 </body>
 </html>
